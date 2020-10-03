@@ -47,7 +47,9 @@ func gatewayURI(baseURL, token, version string, encoding Encoding) (string, erro
 
 	defer resp.Body.Close()
 	buf := &bytes.Buffer{}
-	io.Copy(buf, resp.Body)
+	if _, err := io.Copy(buf, resp.Body); err != nil {
+		return "", err
+	}
 
 	uri := fastjson.GetString(buf.Bytes(), "url")
 	if len(uri) == 0 {

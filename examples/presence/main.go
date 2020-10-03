@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"time"
 
 	"github.com/paramusio/go-zetka"
 )
@@ -16,7 +19,6 @@ func main() {
 	flag.Parse()
 
 	results := make(chan *zetka.GatewayEvent, 32)
-
 	c, err := zetka.New(*Token)
 	if err != nil {
 		log.Fatal(err)
@@ -33,7 +35,10 @@ func main() {
 	for {
 		select {
 		case msg := <-results:
-			log.Printf("(%d):%s %+v", msg.OpCode, msg.Type, string(msg.Data))
+			err := ioutil.WriteFile(fmt.Sprintf("dump/%d-%s.json", time.Now().Unix(), msg.Type), msg.Data, 0666)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }

@@ -53,7 +53,7 @@ func Test_gatewayURI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write(tt.response)
+				_, _ = w.Write(tt.response)
 			}))
 
 			got, err := gatewayURI(srv.URL, tt.args.token, tt.args.version, tt.args.encoding)

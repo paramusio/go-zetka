@@ -13,6 +13,7 @@ type Client struct {
 	gwurl    string
 	compress bool
 
+	errs     chan error
 	sequence atomic.Value
 }
 
@@ -20,6 +21,8 @@ type Client struct {
 func New(token string) (*Client, error) {
 	c := &Client{
 		compress: true,
+
+		errs: make(chan error),
 	}
 	c.sequence.Store(int64(0))
 

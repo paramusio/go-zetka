@@ -82,7 +82,7 @@ func (c *Client) decode(mt int, reader io.Reader) (*GatewayEvent, error) {
 func (c *Client) parse(conn *websocket.Conn, msg *GatewayEvent) error {
 	switch msg.OpCode {
 	case opcode.Heartbeat:
-		c.sendHeartbeat(conn, c.sequence.Load().(int64))
+		 c.sendHeartbeat(conn, c.sequence.Load().(int64))
 
 	case opcode.Hello:
 		// Parse Interval
@@ -90,8 +90,11 @@ func (c *Client) parse(conn *websocket.Conn, msg *GatewayEvent) error {
 
 		// Start heartbeat dispatcher
 		go c.heartbeat(conn, time.Duration(interval), c.sequence.Load().(int64))
+
 		// Send authentication packets
-		c.auth(conn)
+		if err := c.auth(conn); err != nil {
+			return err
+		}
 
 	case opcode.Dispatch:
 		c.sequence.Store(msg.Sequence)
@@ -107,15 +110,17 @@ func (c *Client) parse(conn *websocket.Conn, msg *GatewayEvent) error {
 
 // heartbeat starts a go routine to send heart beats at the given interval
 // TODO(tobbbles) look at an sync atomic value for the interval in case it will change dynamically
-func (c *Client) heartbeat(conn *websocket.Conn, interval time.Duration, sequence int64) error {
+func (c *Client) heartbeat(conn *websocket.Conn, interval time.Duration, sequence int64) {
 	for {
 		<-time.After(interval * time.Millisecond)
 
-		return c.sendHeartbeat(conn, sequence)
+		c.sendHeartbeat(conn, sequence)
 	}
 }
-func (c *Client) sendHeartbeat(conn *websocket.Conn, sequence int64) error {
-	return conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"op": 1,"d":%d}`, sequence)))
+func (c *Client) sendHeartbeat(conn *websocket.Conn, sequence int64) {
+	if err := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"op": 1,"d":%d}`, sequence))); err != nil {
+		c.errs <- err
+	}
 }
 
 func (c *Client) auth(conn *websocket.Conn) error {
