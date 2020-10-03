@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/paramus/go-zetka/intent"
-	"github.com/paramus/go-zetka/message"
+	"github.com/paramusio/go-zetka/intent"
+	"github.com/paramusio/go-zetka/message"
 	"github.com/valyala/fastjson"
 	"io"
 	"time"
 
-	"github.com/paramus/go-zetka/opcode"
+	"github.com/paramusio/go-zetka/opcode"
 
 	"github.com/gorilla/websocket"
 )

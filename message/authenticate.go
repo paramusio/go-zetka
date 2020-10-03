@@ -1,6 +1,6 @@
 package message
 
-import "github.com/paramus/go-zetka/intent"
+import "github.com/paramusio/go-zetka/intent"
 
 type Shard [2]int
 
