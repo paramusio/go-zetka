@@ -1,4 +1,4 @@
-module github.com/paramus/go-zetka
+module github.com/paramusio/go-zetka
 
 go 1.15
 
