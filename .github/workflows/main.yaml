@@ -1,0 +1,48 @@
+on: [push, pull_request]
+jobs:
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        id: gopkg
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - run: go mod download
+        if: steps.gopkg.outputs.cache-hit != 'true'
+      - run: go mod verify
+
+      - name: Install golangci-lint
+        run: curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin ${{ secrets.SERVICES_GOLANGCI_LINT_VERSION }}
+        if: steps.gobin.outputs.cache-hit != 'true'
+
+      - run: $(go env GOPATH)/bin/golangci-lint run ./...
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - uses: actions/checkout@v2
+
+      - name: test
+        run: go test -coverprofile=coverage.out ./...
+
+      - uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.out
+
