@@ -1,11 +1,12 @@
+name: "go test"
+
 on:
   push:
+    branches: [ main ]
   pull_request:
-    branches:
-      - master
+    branches: [ main ]
 
 jobs:
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
