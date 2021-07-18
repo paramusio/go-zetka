@@ -3,10 +3,10 @@ package zetka
 import (
 	"context"
 	"errors"
-	"fmt"
-	"net/http"
 	"sync/atomic"
 )
+
+const DefaultPort = 4008
 
 // Client
 type Client struct {
@@ -15,9 +15,9 @@ type Client struct {
 	gwurl    string
 	compress bool
 
-	srv *http.Server
+	errs      chan error
+	restartch chan struct{}
 
-	errs     chan error
 	sequence atomic.Value
 }
 
@@ -26,8 +26,10 @@ func New(token string, opts ...Option) (*Client, error) {
 	c := &Client{
 		compress: true,
 
-		errs: make(chan error),
+		errs:      make(chan error),
+		restartch: make(chan struct{}),
 	}
+
 	c.sequence.Store(int64(0))
 
 	if len(token) == 0 {
@@ -60,15 +62,6 @@ func (c *Client) Start(ctx context.Context, results chan *GatewayEvent) error {
 			errc <- err
 		}
 	}(errc, results)
-
-	if c.srv != nil {
-		go func(errc chan error) {
-			if err := c.srv.ListenAndServe(); err != nil {
-				errc <- fmt.Errorf("fatal error in internal server: %e", err)
-				return
-			}
-		}(errc)
-	}
 
 	for {
 		select {

@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/paramusio/go-zetka/intent"
-	"github.com/paramusio/go-zetka/message"
-	"github.com/valyala/fastjson"
 	"io"
 	"time"
+
+	"github.com/valyala/fastjson"
+
+	"github.com/paramusio/go-zetka/intent"
+	"github.com/paramusio/go-zetka/message"
 
 	"github.com/paramusio/go-zetka/opcode"
 
@@ -32,23 +34,37 @@ func (c *Client) Receive(gwuri string, results chan *GatewayEvent) error {
 	if err != nil {
 		return err
 	}
+	WebSocketConnectionCounter.Inc()
 
 	for {
-		mt, reader, err := conn.NextReader()
-		if err != nil {
-			return err
-		}
+		select {
+		// On restart, let's close the current connection and re-dial.
 
-		event, err := c.decode(mt, reader)
-		if err != nil {
-			return err
-		}
+		// TODO(tobbbles): This is naive and could result in endless recursion.
+		// We should add some logic here for maximum retries
+		case <-c.restartch:
+			_ = conn.Close()
+			WebSocketConnectionCounter.Dec()
 
-		if err := c.parse(conn, event); err != nil {
-			return err
-		}
+			return c.Receive(gwuri, results)
 
-		results <- event
+		default:
+			mt, reader, err := conn.NextReader()
+			if err != nil {
+				return err
+			}
+
+			event, err := c.decode(mt, reader)
+			if err != nil {
+				return err
+			}
+
+			if err := c.parse(conn, event); err != nil {
+				return err
+			}
+
+			results <- event
+		}
 	}
 }
 
@@ -82,7 +98,8 @@ func (c *Client) decode(mt int, reader io.Reader) (*GatewayEvent, error) {
 func (c *Client) parse(conn *websocket.Conn, msg *GatewayEvent) error {
 	switch msg.OpCode {
 	case opcode.Heartbeat:
-		 c.sendHeartbeat(conn, c.sequence.Load().(int64))
+		// TODO: Start a timer to measure differenence between heartbeat rcv -> send -> ack
+		c.sendHeartbeat(conn, c.sequence.Load().(int64))
 
 	case opcode.Hello:
 		// Parse Interval
@@ -98,7 +115,12 @@ func (c *Client) parse(conn *websocket.Conn, msg *GatewayEvent) error {
 
 	case opcode.Dispatch:
 		c.sequence.Store(msg.Sequence)
-		//results <- msg.Data
+
+	case opcode.InvalidSession:
+		// Send a signal to re-start the receive loop
+		c.restartch <- struct{}{}
+
+	case opcode.HeartbeatACK:
 
 	default:
 		fmt.Printf("Received unknown event code %d\n", msg.OpCode)
